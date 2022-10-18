@@ -24,13 +24,13 @@ def get_sigmas_karras(n, sigma_min, sigma_max, rho=7., device='cpu'):
 
 def get_sigmas_exponential(n, sigma_min, sigma_max, device='cpu'):
     """Constructs an exponential noise schedule."""
-    sigmas = torch.linspace(math.log(sigma_max), math.log(sigma_min), n, device=device).exp()
+    sigmas = torch.linspace(math.log(sigma_max), math.log(sigma_min), n).to(device).exp()
     return append_zero(sigmas)
 
 
 def get_sigmas_vp(n, beta_d=19.9, beta_min=0.1, eps_s=1e-3, device='cpu'):
     """Constructs a continuous VP noise schedule."""
-    t = torch.linspace(1, eps_s, n, device=device)
+    t = torch.linspace(1, eps_s, n).to(device)
     sigmas = torch.sqrt(torch.exp(beta_d * t ** 2 / 2 + beta_min * t) - 1)
     return append_zero(sigmas)
 
@@ -323,7 +323,7 @@ class DPMSolver(nn.Module):
             raise ValueError('eta must be 0 for reverse sampling')
 
         m = math.floor(nfe / 3) + 1
-        ts = torch.linspace(t_start, t_end, m + 1, device=x.device)
+        ts = torch.linspace(t_start, t_end, m + 1).to(x.device)
 
         if nfe % 3 == 0:
             orders = [3] * (m - 2) + [2, 1]

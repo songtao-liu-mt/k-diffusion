@@ -60,7 +60,7 @@ class DiscreteSchedule(nn.Module):
         if n is None:
             return sampling.append_zero(self.sigmas.flip(0))
         t_max = len(self.sigmas) - 1
-        t = torch.linspace(t_max, 0, n, device=self.sigmas.device)
+        t = torch.linspace(t_max, 0, n).to(self.sigmas.device)
         return sampling.append_zero(self.t_to_sigma(t))
 
     def sigma_to_t(self, sigma, quantize=None):
@@ -69,7 +69,7 @@ class DiscreteSchedule(nn.Module):
         dists = log_sigma - self.log_sigmas[:, None]
         if quantize:
             return dists.abs().argmin(dim=0).view(sigma.shape)
-        low_idx = dists.ge(0).cumsum(dim=0).argmax(dim=0).clamp(max=self.log_sigmas.shape[0] - 2)
+        low_idx = dists.cpu().ge(0).cumsum(dim=0).argmax(dim=0).clamp(max=self.log_sigmas.shape[0] - 2).to("mtgpu")
         high_idx = low_idx + 1
         low, high = self.log_sigmas[low_idx], self.log_sigmas[high_idx]
         w = (low - log_sigma) / (low - high)
@@ -78,8 +78,11 @@ class DiscreteSchedule(nn.Module):
         return t.view(sigma.shape)
 
     def t_to_sigma(self, t):
-        t = t.float()
+        t = t.float().cpu()
         low_idx, high_idx, w = t.floor().long(), t.ceil().long(), t.frac()
+        low_idx = low_idx.to("mtgpu")
+        high_idx = high_idx.to("mtgpu")
+        w = w.to("mtgpu")
         log_sigma = (1 - w) * self.log_sigmas[low_idx] + w * self.log_sigmas[high_idx]
         return log_sigma.exp()
 
